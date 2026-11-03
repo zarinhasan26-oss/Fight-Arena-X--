@@ -66,6 +66,7 @@ public class MainActivity extends Activity {
 
     public final class OnlineBridge {
         @JavascriptInterface public boolean isOnlineVerified() { return lastOnline; }
+        @JavascriptInterface public void retryConnection() { runOnUiThread(() -> { handler.removeCallbacks(checkOnline); handler.post(checkOnline); }); }
     }
 
     @SuppressLint("SetJavaScriptEnabled")
