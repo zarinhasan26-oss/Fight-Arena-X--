@@ -130,6 +130,7 @@ function updateRig(r,unit,now,which){
  r.root.position.y=Math.max(0,unit.y)*1.8+bob;
  r.root.rotation.y=unit.dir===1?Math.PI/2:-Math.PI/2;
  r.head.rotation.z=Math.sin(now*1.4)*.05;
+ r.head.rotation.y=unit.dir===1?-Math.PI/2:Math.PI/2; // face camera while torso turns toward opponent
  r.torso.rotation.z=Math.sin(now*4)*.03;
  r.leftArm.rotation.x=-.2+Math.sin(now*5)*.11;
  r.rightArm.rotation.x=-.2-Math.sin(now*5)*.11;
