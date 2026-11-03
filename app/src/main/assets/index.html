@@ -44,7 +44,7 @@ window.setVerifiedOnline=function(ok){
 };
 window.requestConnectionCheck=function(){
  document.getElementById('networkMessage').textContent='Checking connection...';
- // The native Android app checks the remote status server. Do not grant offline access here.
+ if(window.FightNetwork && window.FightNetwork.retryConnection) window.FightNetwork.retryConnection();
 };
 
 const defaults=[
