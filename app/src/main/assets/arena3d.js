@@ -139,11 +139,28 @@ function updateRig(r,unit,now,which){
  r.rightLeg.rotation.x=-r.leftLeg.rotation.x;
  r.leftShin.rotation.x=.02;r.rightShin.rotation.x=.02;
  if(unit.attack>.02){
-  const action=Math.sin(Math.PI*Math.min(1,unit.attack*3.3));
-  if(which===0){r.rightArm.rotation.x=-1.75*action;r.torso.rotation.y=.18*action;}
-  else {r.leftArm.rotation.x=-1.65*action;r.torso.rotation.y=-.16*action;}
-  if(unit.attack>.35){r.rightLeg.rotation.x=-.9*action;r.rightShin.rotation.x=.27;}
- }else r.torso.rotation.y=0;
+  const duration=unit.lastMove==='power'?.85:.26;
+  const phase=1-Math.min(1,unit.attack/duration);
+  const action=Math.sin(Math.PI*phase);
+  if(unit.lastMove==='kick'){
+    r.rightLeg.rotation.x=-1.45*action;
+    r.rightShin.rotation.x=.30*action;
+    r.leftArm.rotation.x=-.8;
+    r.rightArm.rotation.x=-.65;
+    r.torso.rotation.z=-.18*action;
+  }else if(unit.lastMove==='punch'){
+    r.rightArm.rotation.x=-1.9*action;
+    r.rightFore.rotation.x=-.12;
+    r.torso.rotation.y=.35*action;
+  }else{
+    r.leftArm.rotation.x=-2.4*action;
+    r.rightArm.rotation.x=-2.4*action;
+    r.leftFore.rotation.x=-.5;
+    r.rightFore.rotation.x=-.5;
+    r.torso.rotation.y=Math.sin(phase*Math.PI*4)*.25;
+    r.rightLeg.rotation.x=-.35*action;
+  }
+ }else {r.torso.rotation.y=0;r.torso.rotation.z=0;}
  if(unit.flash>.02){r.torso.scale.set(1+.06*Math.sin(now*38),1,1);}
  else r.torso.scale.set(1,1,1);
 }
