@@ -3,7 +3,7 @@
 'use strict';
 if(!window.THREE){document.getElementById('networkMessage').textContent='3D engine could not load. Check internet and retry.';return;}
 const T=window.THREE;
-let renderer,scene,camera,clock,rigs=[],particles=[],last3=0,ready=false;
+let renderer,scene,camera,clock,rigs=[],particles=[],last3=0,ready=false,cameraKick=0,impactCooldown=0;
 const skin=0xd39e78, arenaBlue=0x121c42;
 const palette=[
 {body:0xd93485,legs:0xf1e5ee,skin:0xb87e59,hair:0x111115},
@@ -60,8 +60,8 @@ function createFighter(index,x){
  const rightLeg=limb(hips,.77,.205,.16,pants,.23,-.20,0);
  const leftShin=limb(leftLeg,.70,.165,.12,pants,0,-.77,0);
  const rightShin=limb(rightLeg,.70,.165,.12,pants,0,-.77,0);
- box(leftShin,.24,.16,.37,shoe,0,-.69,.12);
- box(rightShin,.24,.16,.37,shoe,0,-.69,.12);
+ box(leftShin,.27,.20,.43,shoe,0,-.69,.12);
+ box(rightShin,.27,.20,.43,shoe,0,-.69,.12);
  if(index===0||index===5){
   const wrap=mat(index===0?0xf2e8f2:0xf2cc9c);
   const scarf=box(torso,.18,.89,.08,wrap,.20,.00,.24);scarf.rotation.z=-.20;
@@ -71,8 +71,9 @@ function createFighter(index,x){
  if(index===2){box(torso,.37,.13,.05,mat(0x6686a0),0,.06,.26);}
  if(index===1){box(torso,.20,.08,.05,mat(0x83b9fa),0,.1,.25);}
  if(index===4){const collar=mesh(new T.CylinderGeometry(.15,.23,.25,16),mat(0xe8ede7),torso,0,.49,0);}
+ const shadow=mesh(new T.CircleGeometry(.58,24),new T.MeshBasicMaterial({color:0x050610,transparent:true,opacity:.36,depthWrite:false}),root,0,.018,0);shadow.rotation.x=-Math.PI/2;
  const ring=mesh(new T.TorusGeometry(.62,.036,8,40),new T.MeshBasicMaterial({color:p.body,transparent:true,opacity:.36}),root,0,.055,0);ring.rotation.x=-Math.PI/2;
- return {root,torso,head,leftArm,rightArm,leftFore,rightFore,leftLeg,rightLeg,leftShin,rightShin,hips,ring,lastIndex:index};
+ return {root,torso,head,leftArm,rightArm,leftFore,rightFore,leftLeg,rightLeg,leftShin,rightShin,hips,ring,shadow,lastIndex:index};
 }
 function makeFace(face,bare,hair){
  let dark=mat(0x252027),white=mat(0xf6f1e3),lip=mat(0x8e5352);
@@ -85,11 +86,14 @@ function makeFace(face,bare,hair){
 function stage(){
  scene=new T.Scene();scene.background=new T.Color(0x0a1030);scene.fog=new T.FogExp2(0x121c45,.025);
  camera=new T.PerspectiveCamera(45,1,.1,80);camera.position.set(0,3.1,10.7);camera.lookAt(0,1.35,0);
- const ambient=new T.HemisphereLight(0x8dc7ff,0x2c1b3c,1.4);scene.add(ambient);
+ const ambient=new T.HemisphereLight(0x8dc7ff,0x2c1b3c,1.65);scene.add(ambient);
+ const key=new T.DirectionalLight(0xffe3e3,2.1);key.position.set(-2,9,7);scene.add(key);
  let spots=[[0,8,5,0x77b7ff,110],[7,6,-4,0xf24ec3,80],[-7,6,-4,0x45bfff,80]];
  spots.forEach(a=>{let l=new T.PointLight(a[3],a[4],19);l.position.set(a[0],a[1],a[2]);scene.add(l)});
  let floor=mesh(new T.CylinderGeometry(8.2,8.2,.27,72),mat(0x151e33,.33,.35),scene,0,-.12,0);
  const grid=new T.GridHelper(16,25,0x3295ec,0x346a9e);grid.position.y=.025;scene.add(grid);
+ const floorCircle=mesh(new T.RingGeometry(2.1,2.14,64),new T.MeshBasicMaterial({color:0xffad31,side:T.DoubleSide}),scene,0,.035,0);floorCircle.rotation.x=-Math.PI/2;
+ for(let k=0;k<8;k++){const a=k*Math.PI/4;const beacon=mesh(new T.BoxGeometry(.3,.3,.3),new T.MeshBasicMaterial({color:k%2?0xf44894:0x25ceff}),scene,Math.cos(a)*6.0,2.9,Math.sin(a)*6);beacon.rotation.y=a;}
  const rim=mesh(new T.TorusGeometry(7.35,.09,12,80),new T.MeshBasicMaterial({color:0xe746b8}),scene,0,.1,0);rim.rotation.x=-Math.PI/2;
  let neon=mesh(new T.TorusGeometry(5.9,.04,8,75),new T.MeshBasicMaterial({color:0x12c9f5}),scene,0,.03,0);neon.rotation.x=-Math.PI/2;
  for(let k=0;k<18;k++){const a=k*Math.PI*2/18;
@@ -101,7 +105,7 @@ function stage(){
  }
  const canvas=document.getElementById('canvas');
  renderer=new T.WebGLRenderer({canvas,antialias:true,alpha:false,powerPreference:'high-performance'});
- renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,1.7));
+ renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,1.4));
  renderer.outputColorSpace=T.SRGBColorSpace;
  renderer.toneMapping=T.ACESFilmicToneMapping;
  renderer.toneMappingExposure=1.15;
@@ -109,7 +113,8 @@ function stage(){
 }
 function makeFX(x,color,kind){
  const burst=new T.Group();burst.position.set(x,1.55,.15);scene.add(burst);
- const material=new T.MeshBasicMaterial({color,transparent:true,opacity:.9});
+ const material=new T.MeshBasicMaterial({color,transparent:true,opacity:.9,depthWrite:false});
+ cameraKick=Math.max(cameraKick,.22);
  if(kind===3){
   const cv=document.createElement('canvas');cv.width=512;cv.height=200;
   let c=cv.getContext('2d');c.fillStyle='#ffdc51';c.fillRect(0,0,512,200);c.fillStyle='#191c31';c.font='bold 88px system-ui';c.textAlign='center';c.fillText('50% TAX',256,128);
@@ -121,6 +126,7 @@ function makeFX(x,color,kind){
  for(let i=0;i<16;i++){let a=i*Math.PI*2/16;
   let p=ball(burst,.065,new T.MeshBasicMaterial({color:0xffffff}),Math.cos(a)*.4,Math.sin(a)*.6,.15);
  }
+ const halo=mesh(new T.TorusGeometry(.7,.07,8,48),new T.MeshBasicMaterial({color,transparent:true,opacity:.8,depthWrite:false}),burst);halo.rotation.y=.25;
  particles.push({group:burst,life:.8});if(particles.length>20){let old=particles.shift();scene.remove(old.group);}
 }
 function updateRig(r,unit,now,which){
@@ -128,6 +134,7 @@ function updateRig(r,unit,now,which){
  const bob=Math.sin(now*3.8+(which?1.2:0))*.035;
  r.root.position.x=(unit.x-.5)*9;
  r.root.position.y=Math.max(0,unit.y)*1.8+bob;
+ r.shadow.position.y=.015-r.root.position.y; r.shadow.material.opacity=.34/(1+Math.max(0,unit.y)*1.5);
  r.root.rotation.y=unit.dir===1?Math.PI/2:-Math.PI/2;
  r.head.rotation.z=Math.sin(now*1.4)*.05;
  r.head.rotation.y=unit.dir===1?-Math.PI/2:Math.PI/2; // face camera while torso turns toward opponent
@@ -162,7 +169,8 @@ function updateRig(r,unit,now,which){
     r.rightLeg.rotation.x=-.35*action;
   }
  }else {r.torso.rotation.y=0;r.torso.rotation.z=0;}
- if(unit.flash>.02){r.torso.scale.set(1+.06*Math.sin(now*38),1,1);}
+ if(unit.hp<=0){r.root.rotation.z=Math.max(-1.25,r.root.rotation.z-.055);r.torso.rotation.x=.28;}else{r.root.rotation.z*=.7;r.torso.rotation.x=0;}
+ if(unit.flash>.02){cameraKick=Math.max(cameraKick,.08);r.torso.scale.set(1+.06*Math.sin(now*38),1,1);}
  else r.torso.scale.set(1,1,1);
 }
 let previousEffect=null;
@@ -171,7 +179,14 @@ function renderFrame(){
  let width=canvas.clientWidth||innerWidth,height=canvas.clientHeight||innerHeight;
  if(width<1||height<1)return;
  renderer.setSize(width,height,false);
- camera.aspect=width/height;camera.position.z=Math.max(8.1,11*(1.7/camera.aspect));camera.updateProjectionMatrix();
+ camera.aspect=width/height;
+ let fighterSpread=player&&enemy?Math.abs(player.x-enemy.x):.35;
+ let targetDistance=Math.max(9.6,11.2*(1.6/camera.aspect)) + fighterSpread*2.7;
+ camera.position.z+=(targetDistance-camera.position.z)*.08;
+ camera.position.x=(Math.random()-.5)*cameraKick;
+ camera.position.y=3.3+(Math.random()-.5)*cameraKick;
+ camera.lookAt(0,1.4,0);
+ cameraKick*=.82;camera.updateProjectionMatrix();
  let now=performance.now()/1000;
  updateRig(rigs[0],player,now,0);updateRig(rigs[1],enemy,now,1);
  if(typeof effect!=='undefined'&&effect&&effect.time>0&&effect!==previousEffect){
